@@ -1,9 +1,13 @@
 """Спільні функції RAG-пайплайну (ЛР3): чанкінг, ембединги, ChromaDB, пошук і генерація."""
+import hashlib
+import json
 import os
+import re
 import sys
+import time
 
 import chromadb
-from google.genai import types
+from google.genai import errors, types
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -17,17 +21,55 @@ def split_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> l
     return splitter.split_text(text)
 
 
+CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".cache", "embeddings.json")
+
+
+def _load_cache() -> dict:
+    try:
+        with open(CACHE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_cache(cache: dict) -> None:
+    os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+    with open(CACHE, "w", encoding="utf-8") as f:
+        json.dump(cache, f)
+
+
+def _embed_batch(batch: list[str], task_type: str):
+    """Один запит до API; при перевищенні хвилинної квоти (429) чекаємо й повторюємо."""
+    for attempt in range(4):
+        try:
+            return client.models.embed_content(model=EMBED_MODEL, contents=batch,
+                                               config=types.EmbedContentConfig(task_type=task_type))
+        except errors.ClientError as e:
+            if e.code != 429 or attempt == 3:
+                raise
+            m = re.search(r"retry in ([\d.]+)s", str(e))
+            wait = min(float(m.group(1)) + 2 if m else 30, 70)
+            print(f"[квоту ембедингів на хвилину вичерпано, повтор через {wait:.0f} с]", file=sys.stderr)
+            time.sleep(wait)
+
+
 def embed(texts: list[str], task_type: str) -> list[list[float]]:
-    """Ембединги пакетами по 50 текстів (обмеження API на один запит)."""
-    vectors = []
-    for i in range(0, len(texts), 50):
-        res = client.models.embed_content(
-            model=EMBED_MODEL,
-            contents=texts[i:i + 50],
-            config=types.EmbedContentConfig(task_type=task_type),
-        )
-        vectors.extend(e.values for e in res.embeddings)
-    return vectors
+    """Ембединги пакетами по 50 текстів (обмеження API на один запит).
+
+    Вектори кешуються на диску (ключ — модель, тип задачі й текст), тому повторна індексація
+    того самого документа не витрачає квоту API.
+    """
+    cache = _load_cache()
+    keys = [hashlib.sha1(f"{EMBED_MODEL}|{task_type}|{t}".encode()).hexdigest() for t in texts]
+    missing = [i for i, k in enumerate(keys) if k not in cache]
+    for start in range(0, len(missing), 50):
+        idx = missing[start:start + 50]
+        res = _embed_batch([texts[i] for i in idx], task_type)
+        for i, e in zip(idx, res.embeddings):
+            cache[keys[i]] = e.values
+    if missing:
+        _save_cache(cache)
+    return [cache[k] for k in keys]
 
 
 def build_collection(chunks: list[str], name: str, metadatas=None):
