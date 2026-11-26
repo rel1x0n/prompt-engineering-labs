@@ -14,12 +14,12 @@ from google import genai
 from google.genai import types
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from gemini_setup import MODEL, load_api_key  # noqa: E402
+from gemini_setup import MODEL, enable_fallback, load_api_key  # noqa: E402
 
 # ---------------- Крок 1. Налаштування та ініціалізація ----------------
 load_dotenv()                      # змінні оточення з файлу .env
 api_key = load_api_key()           # ключ не зберігається в коді
-client = genai.Client(api_key=api_key)
+client = enable_fallback(genai.Client(api_key=api_key))
 
 
 def step1():
