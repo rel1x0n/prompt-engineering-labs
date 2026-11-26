@@ -41,7 +41,9 @@ python final_project/testgen.py final_project/examples/grades.py
 ## Моделі
 
 Назви моделей задаються змінними оточення (значення за замовчуванням — у `gemini_setup.py`):
-`GEMINI_MODEL` (основна модель), `GEMINI_FLASH_MODEL` (швидка модель), `GEMINI_EMBED_MODEL` (ембединги).
+`GEMINI_MODEL` (основна модель, `gemini-3.5-flash-lite`), `GEMINI_FLASH_MODEL` (легша модель, `gemini-3.1-flash-lite`),
+`GEMINI_EMBED_MODEL` (ембединги, `gemini-embedding-001`). Якщо модель тимчасово перевантажена (503) або вичерпано
+квоту (429), клієнт з `get_client()` повторює запит з резервною моделлю (`GEMINI_FALLBACK_MODELS`).
 Моделі Gemini 1.5, згадані в методичних вказівках, виведено з обігу, тому використано актуальні моделі Gemini
 та SDK `google-genai` замість застарілого `google-generativeai`.
 
