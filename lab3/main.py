@@ -1,6 +1,6 @@
 """Лабораторна робота №3. Базовий RAG-застосунок над робочою програмою курсу.
 
-Запуск:  python lab3/main.py "Запитання 1" ["Запитання 2" ...]
+Запуск:  python lab3/main.py [--prompt v1|v2] "Запитання 1" ["Запитання 2" ...]
 Індексація виконується один раз, далі для кожного запитання — пошук і генерація.
 """
 import os
@@ -12,7 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QUERY = "Скільки всього годин відведено на лабораторні роботи на денній формі?"
 
 
-def main(queries):
+def main(queries, version="v1"):
     # --- ЗАВАНТАЖЕННЯ ДАНИХ ---
     with open(os.path.join(HERE, "knowledge.txt"), encoding="utf-8") as f:
         knowledge_text = f.read()
@@ -38,9 +38,13 @@ def main(queries):
             preview = " ".join(doc.split())[:300]
             print(f"  - чанк #{cid} (косинусна відстань {dist:.3f}): {preview}...")
         context = "\n".join(docs)
-        print(f"\nВідповідь ШІ ({MODEL}):")
-        print(answer(query, context))
+        print(f"\nВідповідь ШІ ({MODEL}, промпт {version}):")
+        print(answer(query, context, version=version))
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:] or [DEFAULT_QUERY])
+    args = sys.argv[1:]
+    version = "v1"
+    if len(args) >= 2 and args[0] == "--prompt":
+        version, args = args[1], args[2:]
+    main(args or [DEFAULT_QUERY], version)
