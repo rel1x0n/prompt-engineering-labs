@@ -7,6 +7,7 @@
 """
 import os
 import sys
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -104,10 +105,30 @@ def enable_fallback(client: genai.Client) -> genai.Client:
     return client
 
 
+def retry_transient(fn, attempts: int = 6, wait: float = 5.0):
+    """Викликає fn(); при тимчасовій помилці API (503, 429, ...) чекає й повторює виклик.
+
+    Використовується у вимірюваннях (ЛР4): час вимірюється всередині fn для кожної спроби окремо,
+    тому повтори не спотворюють результат.
+    """
+    for i in range(attempts):
+        try:
+            return fn()
+        except errors.APIError as e:
+            if e.code not in RETRY_CODES or i == attempts - 1:
+                raise
+            print(f"[тимчасова помилка API {e.code}, повтор через {wait:.0f} с]", file=sys.stderr)
+            time.sleep(wait)
+
+
 def get_client(fallback: bool = True) -> genai.Client:
-    """Клієнт Gemini API. fallback=False вимикає перемикання на резервну модель
-    (потрібно там, де вимірюється саме задана модель, наприклад швидкодія в ЛР4)."""
+    """Клієнт Gemini API.
+
+    fallback=False — без перемикання на резервну модель і без прихованих повторів SDK: так
+    вимірюється саме задана модель (ЛР4), а тимчасові помилки обробляє retry_transient().
+    """
     if not fallback:
-        return genai.Client(api_key=load_api_key())
+        once = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1))
+        return genai.Client(api_key=load_api_key(), http_options=once)
     http = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=3))
     return enable_fallback(genai.Client(api_key=load_api_key(), http_options=http))
