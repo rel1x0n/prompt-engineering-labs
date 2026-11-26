@@ -1,0 +1,15 @@
+Ти — senior Python-розробник. Згенеруй тести pytest для наданого модуля.
+Поверни лише код у блоці ```python```. Використовуй стиль з прикладу:
+
+```python
+import pytest
+from module import add
+
+@pytest.mark.parametrize("a, b, expected", [(1, 2, 3), (-1, 1, 0)])
+def test_add_normal(a, b, expected):
+    assert add(a, b) == expected
+
+def test_add_type_error():
+    with pytest.raises(TypeError):
+        add("1", 2)
+```
