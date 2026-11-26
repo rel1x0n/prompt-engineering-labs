@@ -13,7 +13,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from gemini_setup import FLASH_MODEL, MODEL, get_client  # noqa: E402
 
-client = get_client()
+client = get_client(fallback=False)  # вимірюємо саме задані моделі
 PRICES = {MODEL: (1.00, 3.00), FLASH_MODEL: (0.10, 0.30)}  # умовні ціни з методичних вказівок
 DEFAULT_PROMPTS = [
     "Поясни одним абзацом, що таке токен у LLM.",
