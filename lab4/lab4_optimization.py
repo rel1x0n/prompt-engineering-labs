@@ -1,6 +1,7 @@
 """Лабораторна робота №4. Кейс 1 (вартість) і Кейс 2 (швидкодія).
 
-Порівнюються дві моделі: потужна («Pro»-клас) і швидка («Flash»-клас).
+Порівнюються дві моделі: основна (умовно «Pro») і легша (умовно «Flash»).
+Назви моделей задаються змінними GEMINI_MODEL і GEMINI_FLASH_MODEL (див. gemini_setup.py).
 Ціни умовні, за методичними вказівками (USD за 1 млн токенів):
   Pro:   $1.00 вхідні, $3.00 вихідні
   Flash: $0.10 вхідні, $0.30 вихідні
@@ -13,7 +14,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from gemini_setup import FLASH_MODEL, MODEL, get_client  # noqa: E402
 
-client = get_client()
+client = get_client(fallback=False)  # вимірюємо саме задані моделі, без резервної
 model_pro, model_flash = MODEL, FLASH_MODEL
 PRICES = {model_pro: (1.00, 3.00), model_flash: (0.10, 0.30)}
 RUNS = int(os.getenv("RUNS", "3"))
@@ -48,6 +49,7 @@ def cost(model: str, tokens_in: int, tokens_out: int) -> float:
 def case1():
     print("=" * 72)
     print("КЕЙС 1. Аналіз вартості")
+    print(f"Моделі: «Pro» = {model_pro}, «Flash» = {model_flash}; ціни умовні (методичні вказівки)")
     tin = {m: client.models.count_tokens(model=m, contents=final_prompt).total_tokens for m in PRICES}
     for m in PRICES:
         print(f"Кількість вхідних токенів для {m}: {tin[m]}")

@@ -11,7 +11,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from gemini_setup import FLASH_MODEL, get_client  # noqa: E402
 
-client = get_client()
+client = get_client(fallback=False)  # вимірюємо саме задану модель
 MODEL = os.getenv("STREAM_MODEL", FLASH_MODEL)
 PROMPT = ("Напиши стислий конспект (6–8 абзаців) на тему «Що таке RAG і як побудувати RAG-застосунок "
           "на Python»: етапи індексації, ембединги, векторна БД, пошук і генерація.")
