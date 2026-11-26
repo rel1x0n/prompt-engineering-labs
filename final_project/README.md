@@ -27,8 +27,11 @@
 pip install -r requirements.txt
 python final_project/testgen.py final_project/examples/grades.py
 python final_project/testgen.py final_project/examples/discount_buggy.py   # модуль з навмисними багами
-python final_project/compare_prompts.py final_project/examples/grades.py   # порівняння промптів v1/v2/v3
+python final_project/compare_prompts.py final_project/examples/grades.py          # порівняння промптів v1/v2/v3
+python final_project/compare_prompts.py final_project/examples/discount_buggy.py  # те саме на модулі з багами
 ```
+
+Моделі задаються в `gemini_setup.py` (за замовчуванням `gemini-3.5-flash-lite`, резервна `gemini-3.1-flash-lite`).
 
 У Colab — блокнот [`final_project_colab.ipynb`](https://colab.research.google.com/github/rel1x0n/prompt-engineering-labs/blob/main/final_project/final_project_colab.ipynb).
 
@@ -45,4 +48,6 @@ python final_project/compare_prompts.py final_project/examples/grades.py   # п�
 * Згенеровані тести виконуються в тимчасовій теці з таймаутом, але без повної ізоляції. Для продакшну
   потрібен контейнер без мережі.
 * Код модуля передається в API: не використовувати для коду з секретами чи персональними даними.
-* Вивід моделі завжди перевіряється запуском pytest.
+* Вивід моделі завжди перевіряється запуском pytest. Пісочниця запускає pytest з `xfail_strict=true`, тому
+  «баг», тест якого насправді проходить, не приймається; підсумковий статус (`ok` / `needs_review`) визначає код,
+  а не модель.

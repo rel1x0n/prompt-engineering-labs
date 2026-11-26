@@ -41,7 +41,10 @@ class PytestSandbox:
             test_path = os.path.join(tmp, f"test_{self.module_name}.py")
             with open(test_path, "w", encoding="utf-8") as f:
                 f.write(test_code)
+            # xfail_strict=true: тест, позначений як баг (xfail), але який проходить, вважається провальним.
+            # Так пісочниця сама відсіює хибні «баги», не покладаючись на те, що модель поставить strict=True.
             cmd = [sys.executable, "-m", "pytest", "-q", "--tb=short", "-p", "no:cacheprovider",
+                   "-o", "xfail_strict=true",
                    f"--cov={self.module_name}", "--cov-report=term-missing", test_path]
             try:
                 proc = subprocess.run(cmd, cwd=tmp, capture_output=True, text=True, timeout=60,
@@ -102,6 +105,9 @@ def generate_tests(module_path: str, prompt_version: str = "v3", verbose: bool =
         result = {"test_file": "", "bugs": [], "summary": response.text.strip()[:500], "parse_error": True}
     result["runs"] = [{k: r[k] for k in ("exit_code", "counts", "coverage_percent")} for r in sandbox.runs]
     result["elapsed_s"] = round(elapsed, 1)
+    # Статус перевіряє код, а не модель: «ok» лише якщо останній запуск pytest завершився без падінь.
+    last = sandbox.runs[-1] if sandbox.runs else None
+    result["status"] = "ok" if last and last.get("exit_code") == 0 else "needs_review"
     return result
 
 
@@ -126,6 +132,8 @@ def main():
     print("\n=== Підсумок ===")
     print(f"Запусків pytest: {len(result['runs'])}; останній: {last.get('counts')}; "
           f"покриття: {last.get('coverage_percent')}%; час: {result['elapsed_s']} с")
+    print(f"Статус: {result['status']}" + ("" if result["status"] == "ok" else
+          " (останній запуск pytest має падіння — тести потребують перевірки людиною)"))
     print(f"Тести збережено: {out_path}")
     print("Знайдені баги:" if result.get("bugs") else "Багів у коді не виявлено.")
     for b in result.get("bugs", []):
