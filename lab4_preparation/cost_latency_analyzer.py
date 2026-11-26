@@ -11,7 +11,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from gemini_setup import FLASH_MODEL, MODEL, get_client  # noqa: E402
+from gemini_setup import FLASH_MODEL, MODEL, get_client, retry_transient  # noqa: E402
 
 client = get_client(fallback=False)  # вимірюємо саме задані моделі
 PRICES = {MODEL: (1.00, 3.00), FLASH_MODEL: (0.10, 0.30)}  # умовні ціни з методичних вказівок
@@ -22,13 +22,17 @@ DEFAULT_PROMPTS = [
 ]
 
 
+def timed_call(model: str, prompt: str):
+    start = time.perf_counter()
+    resp = client.models.generate_content(model=model, contents=prompt)
+    return resp, time.perf_counter() - start
+
+
 def analyze(prompts):
     rows = []
     for p_idx, prompt in enumerate(prompts, 1):
         for model, (p_in, p_out) in PRICES.items():
-            start = time.perf_counter()
-            resp = client.models.generate_content(model=model, contents=prompt)
-            latency = time.perf_counter() - start
+            resp, latency = retry_transient(lambda m=model, p=prompt: timed_call(m, p))
             u = resp.usage_metadata
             t_in = u.prompt_token_count or 0
             t_out = (u.candidates_token_count or 0) + (u.thoughts_token_count or 0)
