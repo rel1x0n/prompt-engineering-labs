@@ -10,6 +10,7 @@ import sys
 import time
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from google import genai
 from google.genai import errors, types
@@ -114,10 +115,11 @@ def retry_transient(fn, attempts: int = 6, wait: float = 5.0):
     for i in range(attempts):
         try:
             return fn()
-        except errors.APIError as e:
-            if e.code not in RETRY_CODES or i == attempts - 1:
+        except (errors.APIError, httpx.TimeoutException) as e:
+            code = getattr(e, "code", "timeout")
+            if (isinstance(e, errors.APIError) and code not in RETRY_CODES) or i == attempts - 1:
                 raise
-            print(f"[тимчасова помилка API {e.code}, повтор через {wait:.0f} с]", file=sys.stderr)
+            print(f"[тимчасова помилка API ({code}), повтор через {wait:.0f} с]", file=sys.stderr)
             time.sleep(wait)
 
 
@@ -128,7 +130,8 @@ def get_client(fallback: bool = True) -> genai.Client:
     вимірюється саме задана модель (ЛР4), а тимчасові помилки обробляє retry_transient().
     """
     if not fallback:
-        once = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1))
+        # одна спроба без прихованих повторів і з тайм-аутом 30 с, щоб «завислий» запит не блокував замір
+        once = types.HttpOptions(timeout=30_000, retry_options=types.HttpRetryOptions(attempts=1))
         return genai.Client(api_key=load_api_key(), http_options=once)
     http = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=3))
     return enable_fallback(genai.Client(api_key=load_api_key(), http_options=http))
