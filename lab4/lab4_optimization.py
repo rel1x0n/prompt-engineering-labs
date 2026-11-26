@@ -12,7 +12,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from gemini_setup import FLASH_MODEL, MODEL, get_client  # noqa: E402
+from gemini_setup import FLASH_MODEL, MODEL, get_client, retry_transient  # noqa: E402
 
 client = get_client(fallback=False)  # вимірюємо саме задані моделі, без резервної
 model_pro, model_flash = MODEL, FLASH_MODEL
@@ -50,7 +50,8 @@ def case1():
     print("=" * 72)
     print("КЕЙС 1. Аналіз вартості")
     print(f"Моделі: «Pro» = {model_pro}, «Flash» = {model_flash}; ціни умовні (методичні вказівки)")
-    tin = {m: client.models.count_tokens(model=m, contents=final_prompt).total_tokens for m in PRICES}
+    tin = {m: retry_transient(lambda m=m: client.models.count_tokens(model=m, contents=final_prompt)).total_tokens
+           for m in PRICES}
     for m in PRICES:
         print(f"Кількість вхідних токенів для {m}: {tin[m]}")
     out = 100  # припущення з методички: відповідь ~100 токенів
@@ -64,6 +65,13 @@ def case1():
     return tin
 
 
+def timed_call(model: str):
+    """Один запит і його час (кожна спроба вимірюється окремо)."""
+    start = time.time()
+    response = client.models.generate_content(model=model, contents=final_prompt)
+    return response, time.time() - start
+
+
 def case2():
     print("=" * 72)
     print(f"КЕЙС 2. Аналіз швидкодії ({RUNS} запуски на модель)")
@@ -71,9 +79,7 @@ def case2():
     for m in PRICES:
         times, usage = [], None
         for i in range(RUNS):
-            start = time.time()
-            response = client.models.generate_content(model=m, contents=final_prompt)
-            elapsed = time.time() - start
+            response, elapsed = retry_transient(lambda m=m: timed_call(m))
             times.append(elapsed)
             usage = response.usage_metadata
             print(f"  {m}, запуск {i + 1}: {elapsed:.2f} с "

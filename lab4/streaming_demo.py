@@ -9,7 +9,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from gemini_setup import FLASH_MODEL, get_client  # noqa: E402
+from gemini_setup import FLASH_MODEL, get_client, retry_transient  # noqa: E402
 
 client = get_client(fallback=False)  # вимірюємо саме задану модель
 MODEL = os.getenv("STREAM_MODEL", FLASH_MODEL)
@@ -46,8 +46,8 @@ def streaming():
 
 if __name__ == "__main__":
     print(f"Модель: {MODEL}\n")
-    t_normal = normal()
-    t_first, t_total = streaming()
+    t_normal = retry_transient(normal)
+    t_first, t_total = retry_transient(streaming)
     print("\nПорівняння")
     print(f"  Час до появи першого тексту: звичайний {t_normal:.2f} с, потоковий {t_first:.2f} с")
     print(f"  Повний час генерації:        звичайний {t_normal:.2f} с, потоковий {t_total:.2f} с")
