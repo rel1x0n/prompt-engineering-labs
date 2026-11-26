@@ -104,6 +104,10 @@ def enable_fallback(client: genai.Client) -> genai.Client:
     return client
 
 
-def get_client() -> genai.Client:
+def get_client(fallback: bool = True) -> genai.Client:
+    """Клієнт Gemini API. fallback=False вимикає перемикання на резервну модель
+    (потрібно там, де вимірюється саме задана модель, наприклад швидкодія в ЛР4)."""
+    if not fallback:
+        return genai.Client(api_key=load_api_key())
     http = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=3))
     return enable_fallback(genai.Client(api_key=load_api_key(), http_options=http))
